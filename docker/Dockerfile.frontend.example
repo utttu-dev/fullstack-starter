@@ -1,0 +1,22 @@
+# ----------------------------------------
+# Dockerfile.frontend.example
+# ----------------------------------------
+# Vite/CRA等のビルドツールを使い、ビルド成果物をnginxで配信する構成パターン。
+# 使い方:
+#   1. このファイルを frontend/Dockerfile としてコピーする
+#   2. <BUILD_OUTPUT_DIR> を自分のビルドツールの出力先に置き換える
+#      (Vite: dist, CRA: build, Next.js export: out 等)
+
+FROM node:22-slim AS builder
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine AS runtime
+COPY --from=builder /app/<BUILD_OUTPUT_DIR> /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

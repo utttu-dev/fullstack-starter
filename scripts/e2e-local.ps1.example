@@ -1,0 +1,46 @@
+# scripts/e2e-local.ps1.example
+# Run Docker startup, migration, and E2E tests in one command.
+#
+# Usage:
+#   1. Copy this file to scripts/e2e-local.ps1
+#   2. Fill in <MIGRATION_COMMAND>
+#   3. Run: .\scripts\e2e-local.ps1
+
+Write-Host "=== Starting containers ===" -ForegroundColor Cyan
+docker compose -f docker/docker-compose.yml up -d --build
+
+Write-Host "`n=== Waiting for frontend ===" -ForegroundColor Cyan
+$maxRetries = 30
+$retry = 0
+do {
+    Start-Sleep -Seconds 2
+    $retry++
+    try {
+        $res = Invoke-WebRequest http://localhost:3000 -UseBasicParsing -TimeoutSec 2
+        $ready = $res.StatusCode -eq 200
+    } catch {
+        $ready = $false
+    }
+} until ($ready -or $retry -ge $maxRetries)
+
+if (-not $ready) {
+    Write-Host "[FAILED] Frontend did not become ready in time." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`n=== Running database migrations ===" -ForegroundColor Cyan
+<MIGRATION_COMMAND>
+
+Write-Host "`n=== Running E2E tests ===" -ForegroundColor Cyan
+Push-Location frontend
+npx playwright test
+$testResult = $LASTEXITCODE
+Pop-Location
+
+if ($testResult -eq 0) {
+    Write-Host "`n[OK] All E2E tests passed." -ForegroundColor Green
+} else {
+    Write-Host "`n[FAILED] E2E tests failed." -ForegroundColor Red
+}
+
+exit $testResult

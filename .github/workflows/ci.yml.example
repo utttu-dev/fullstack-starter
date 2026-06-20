@@ -1,0 +1,93 @@
+# ----------------------------------------
+# ci.yml.example
+# ----------------------------------------
+# Lint → Test → Build → E2E の標準フロー。
+# 使い方:
+#   1. このファイルを .github/workflows/ci.yml としてコピーする
+#   2. 言語ごとのセットアップ・実行コマンドを書き換える
+#
+# 参考実装(todo-api): Python(uv) + React(Vite) + Playwright
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # ----- バックエンドのセットアップ -----
+      # 例(Python/uv):
+      #   - uses: astral-sh/setup-uv@<commit-sha>  # version
+      #   - run: uv python install 3.12
+      # 例(Node.js):
+      #   - uses: actions/setup-node@v6
+      #     with: { node-version: '22' }
+      - name: Set up backend runtime
+        run: <SETUP_BACKEND_COMMAND>
+
+      - name: Install backend dependencies
+        run: <INSTALL_BACKEND_DEPS_COMMAND>
+
+      - name: Lint
+        run: <LINT_COMMAND>
+        # 例(Python/Ruff): uv run ruff check .
+
+      - name: Test
+        run: <TEST_COMMAND>
+        # 例(Pytest): uv run pytest -v
+
+      - name: Build backend Docker image
+        run: docker build -f docker/Dockerfile -t app-backend:ci .
+
+      # ----- フロントエンドのセットアップ -----
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      # ----- E2Eテスト -----
+      - name: Install Playwright
+        working-directory: frontend
+        run: |
+          npm install -D @playwright/test
+          npx playwright install --with-deps chromium
+
+      - name: Start services
+        run: docker compose -f docker/docker-compose.yml up -d --build
+
+      - name: Wait for frontend to be ready
+        run: |
+          for i in {1..30}; do
+            curl -sf http://localhost:3000 && break
+            sleep 2
+          done
+
+      - name: Run database migrations
+        run: <MIGRATION_COMMAND>
+        # 例(Alembic):
+        # docker compose -f docker/docker-compose.yml exec -T backend
+        #   /app/.venv/bin/alembic upgrade head
+
+      - name: Run E2E tests
+        working-directory: frontend
+        run: npx playwright test
+
+      - name: Stop services
+        if: always()
+        run: docker compose -f docker/docker-compose.yml down -v

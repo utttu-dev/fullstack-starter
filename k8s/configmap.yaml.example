@@ -1,0 +1,11 @@
+# ----------------------------------------
+# configmap.yaml.example
+# ----------------------------------------
+# 機密情報を含まない環境変数を管理する。
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: <APP_NAME>-config
+data:
+  DATABASE_URL: "<DB_DRIVER>://<DB_USER>:<DB_PASSWORD>@<APP_NAME>-db-service:<DB_PORT>/<DB_NAME>"

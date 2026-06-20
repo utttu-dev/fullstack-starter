@@ -1,0 +1,44 @@
+# ----------------------------------------
+# deployment.yaml.example
+# ----------------------------------------
+# バックエンドアプリをPodとして複数起動し、冗長性と負荷分散を持たせる構成。
+# 使い方:
+#   1. このファイルを k8s/deployment.yaml としてコピーする
+#   2. <PLACEHOLDER> 部分を自分のアプリに合わせて書き換える
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: <APP_NAME>
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: <APP_NAME>
+  template:
+    metadata:
+      labels:
+        app: <APP_NAME>
+    spec:
+      containers:
+        - name: <APP_NAME>
+          image: <APP_NAME>:local
+          imagePullPolicy: Never   # ローカルでビルドしたイメージを使う場合
+          ports:
+            - containerPort: <APP_PORT>
+          envFrom:
+            - configMapRef:
+                name: <APP_NAME>-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: <APP_PORT>
+            initialDelaySeconds: 5
+            periodSeconds: 10

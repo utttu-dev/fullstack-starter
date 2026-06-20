@@ -1,0 +1,17 @@
+# ----------------------------------------
+# service.yaml.example
+# ----------------------------------------
+# Deploymentで起動した複数Podへのアクセスを1つの窓口にまとめる構成。
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: <APP_NAME>-service
+spec:
+  selector:
+    app: <APP_NAME>
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: <APP_PORT>
+  type: NodePort

@@ -1,0 +1,67 @@
+# ----------------------------------------
+# docker-compose.yml.example
+# ----------------------------------------
+# frontend + backend + db の3層構成テンプレート。
+# 使い方:
+#   1. このファイルを docker/docker-compose.yml としてコピーする
+#   2. <PLACEHOLDER> 部分を自分のプロジェクトに合わせて書き換える
+
+services:
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "<BACKEND_PORT>:<BACKEND_PORT>"   # 例: 8000:8000
+    environment:
+      DATABASE_URL: <DB_DRIVER>://<DB_USER>:<DB_PASSWORD>@db:<DB_INTERNAL_PORT>/<DB_NAME>
+      # CORS設定が必要なフレームワークの場合は環境変数で渡す
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: <DB_IMAGE>   # 例: mysql:8.0 / postgres:16
+    environment:
+      # MySQLの場合の例
+      MYSQL_ROOT_PASSWORD: <DB_ROOT_PASSWORD>
+      MYSQL_DATABASE: <DB_NAME>
+      MYSQL_USER: <DB_USER>
+      MYSQL_PASSWORD: <DB_PASSWORD>
+    ports:
+      - "<DB_EXTERNAL_PORT>:<DB_INTERNAL_PORT>"   # 例: 3308:3306
+    volumes:
+      - db_data:/var/lib/<DB_DATA_DIR>   # 例: mysql
+    healthcheck:
+      # MySQLの場合の例
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
+
+# ----------------------------------------
+# 注意点(todo-api開発で得た教訓)
+# ----------------------------------------
+# 1. ローカル実行(npm run dev / uvicorn --reload等)とコンテナ実行は
+#    同時に行わない(ポート競合の原因になる)
+#
+# 2. コードを修正したのに反映されない場合は、まずDockerキャッシュを疑う
+#    docker compose build --no-cache <service>
+#    docker compose down -v && docker compose up -d --build
+#
+# 3. パスワード等の機密情報は本来 .env ファイルから読み込むのが望ましいが、
+#    OneDrive等の同期フォルダ配下では .env がシンボリックリンク扱いになり
+#    正しく読み込めないことがある。開発ルートは同期フォルダ外に置くこと

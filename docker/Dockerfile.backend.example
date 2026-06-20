@@ -1,0 +1,51 @@
+# ----------------------------------------
+# Dockerfile.backend.example
+# ----------------------------------------
+# マルチステージビルドで軽量な本番イメージを作る構成パターン。
+# 使い方:
+#   1. このファイルを docker/Dockerfile としてコピーする
+#   2. <YOUR_LANG_RUNTIME> 等のプレースホルダを自分の言語・フレームワークに置き換える
+#
+# 例: Python(uv) の場合は以下のように書き換える
+#   FROM python:3.12-slim AS builder
+#   COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+#   ...
+#
+# 例: Node.js(Express等) の場合
+#   FROM node:22-slim AS builder
+#   ...
+
+# ----------------------------------------
+# Stage 1: builder
+# ----------------------------------------
+FROM <YOUR_LANG_RUNTIME> AS builder
+
+WORKDIR /app
+
+# 依存定義ファイルだけ先にコピー(ビルドキャッシュを効かせるため)
+COPY <DEPENDENCY_FILES> ./
+
+# 依存関係をインストールする
+# 例(Python/uv): RUN uv sync --frozen --no-cache --no-dev
+# 例(Node/npm):  RUN npm ci --omit=dev
+RUN <INSTALL_DEPENDENCIES_COMMAND>
+
+# ----------------------------------------
+# Stage 2: runtime
+# ----------------------------------------
+FROM <YOUR_LANG_RUNTIME_SLIM> AS runtime
+
+WORKDIR /app
+
+# builderステージで作った依存関係環境だけをコピーする
+COPY --from=builder <DEPENDENCY_OUTPUT_PATH> <DEPENDENCY_OUTPUT_PATH>
+
+# アプリのソースコードをコピーする
+COPY <SRC_DIR> ./<SRC_DIR>
+
+EXPOSE <APP_PORT>
+
+# アプリを起動する
+# 例(FastAPI):  CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 例(Express):  CMD ["node", "dist/index.js"]
+CMD <START_COMMAND>
